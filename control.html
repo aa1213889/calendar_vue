@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="stylesheet" href="control.css" />
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+<style>
+    body {
+        background: rgb(163, 160, 160);
+    }
+</style>
+
+<body>
+    <div>
+        <div id="components-demo">
+            <calendar></calendar>
+        </div>
+    </div>
+    <template id="custom-calendar">
+        <div onselectstart="return false">
+            <div class="cl_all">
+                <div class="cl_top">
+                    <div class="cl_top_title">{{titleMonth}}</div>
+                    <div class="cl_top_box">
+                        <div class="cl_top_week" @click='backNowMonth'>{{titleWeek}}</div>
+                        <span class="cl_top_left arrow" @click='lastMonth'>&#60;</span>
+                        <span class="cl_top_right arrow" @click='nextMonth'>&#62;</span>
+                    </div>
+                </div>
+                <div class="cl_down">
+                    <div class="cl_down_week">
+                        <div class="down_week" v-for='i in weekArr'>{{i}}</div>
+                    </div>
+                    <div class="cl_all_days">
+                        <div class="cl_day" v-for='d in monthDay' :class='dayClass(d.type)'
+                        @click="dayClick()" @mouseenter="dayMouseenter($event)" @mouseleave="dayMouseleave($event)">{{d.day}}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    <script>
+        Vue.component('calendar', {
+            data: function () {
+                return {
+                    weekArr: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                    dayClassType: ["cl_day_last_month", "", "cl_this_month_today", "cl_day_next_month"],
+                    titleMonth: '',
+                    titleWeek: '',
+                    monthDay: [],
+                }
+            },
+            mounted: function () {
+                this.titleWeek = this.weekToInitial(new Date());
+                this.titleMonth = this.timeToSort(new Date(), 'ym');
+                this.monthDay = this.monthDayCreate(new Date());
+            },
+            methods: {
+                dayClass: function (num) {
+                    return this.dayClassType[num];
+                },
+                timeToSort: function (times, type) { //时间格式化
+                    let de = new Date(times);
+                    let [desY, desM, desD] = [de.getFullYear(), (de.getMonth() + 1), de.getDate()];
+                    if (desM < 9) desM = "0" + desM;
+                    if (desD < 9) desD = "0" + desD;
+                    if (type == "ymd") {
+                        de = desY + "-" + desM + "-" + desD;
+                    } else if (type == "ym") {
+                        de = desY + "/" + desM;
+                    } else if (type == "d") {
+                        de = desD;
+                    }
+                    return de
+                },
+                weekToInitial: function (times) {
+                    let d = new Date(times);
+                    let week = d.getDay();
+                    return this.weekArr[week]
+                },
+                getCountDays: function (times) { // 返回指定月的天数 
+                    let curDate = new Date(times);
+                    let curMonth = curDate.getMonth();
+                    curDate.setMonth(curMonth + 1);
+                    curDate.setDate(0);
+                    return curDate.getDate()
+                },
+                weekToOneDay: function (times) { //当前时间的一号为周几
+                    let de = new Date(times);
+                    let des = de.getFullYear() + "-" + (de.getMonth() + 1) + "-01";
+                    let week = new Date(des).getDay();
+                    return week
+                },
+                lastMonthArr: function (times, days) { // 返回上个月的末尾几天的数组 
+                    let de = new Date(times);
+                    let desY = de.getFullYear();
+                    let desM = ((de.getMonth() + 1) - 1);
+                    if (desM == 0) {
+                        desY--;
+                        desM = 12;
+                    }
+                    let des = desY + "-" + desM + "-01";
+                    let lastDay = this.getCountDays(des);
+                    let arr = [];
+                    for (days; days > 0; days--) {
+                        arr.push({ day: lastDay, type: 0 });
+                        lastDay--;
+                    }
+                    return arr.reverse()
+                },
+                thisMonthArr: function (times) { // 返回本月数组
+                    let [days, arr, nowDay] = [this.getCountDays(times), [], ''];
+                    let isNowMonth = (this.timeToSort(times, 'ym') === this.timeToSort(new Date(), 'ym'));
+                    if (isNowMonth) {
+                        nowDay = new Date().getDate();
+                    }
+                    for (let i = 1; i <= days; i++) {
+                        if ((i === nowDay) && (nowDay != '')) {
+                            arr.push({ day: i, type: 2 })
+                        } else {
+                            arr.push({ day: i, type: 1 })
+                        }
+                    }
+                    return arr
+                },
+                nextMonthArr: function (num) { // 返回下月月初的几天数组
+                    let arr = [];
+                    for (let i = 1; i <= num; i++) {
+                        arr.push({ day: i, type: 3 })
+                    }
+                    return arr
+                },
+                monthDayCreate: function (times) {
+                    let [dayArr, lastArr, nowArr, nextArr, oneDayWeek] = [[], [], [], [], this.weekToOneDay(times),]
+                    lastArr = this.lastMonthArr(times, oneDayWeek);
+                    nowArr = this.thisMonthArr(times);
+                    nextArr = this.nextMonthArr((42 - lastArr.length - nowArr.length));
+                    dayArr = lastArr.concat(nowArr).concat(nextArr);
+                    return dayArr
+                },
+                nextMonth: function () {
+                    let curDate = new Date(this.titleMonth + "/01");
+                    let [nextYear, nextMonth] = [curDate.getFullYear(), (curDate.getMonth() + 2)];
+                    if (nextMonth === 13) {
+                        nextYear++;
+                        nextMonth = 1;
+                    }
+                    if (nextMonth <= 9) nextMonth = "0" + nextMonth;
+                    this.titleMonth = nextYear + "/" + nextMonth;
+                    this.monthDay = this.monthDayCreate(nextYear + "/" + nextMonth + "/01");
+                },
+                lastMonth: function () {
+                    let curDate = new Date(this.titleMonth + "/01");
+                    let [lastYear, lastMonth] = [curDate.getFullYear(), (curDate.getMonth())];
+                    if (lastMonth == 0) {
+                        lastYear--;
+                        lastMonth = 12;
+                    }
+                    if (lastMonth <= 9) lastMonth = "0" + lastMonth;
+                    this.titleMonth = lastYear + "/" + lastMonth;
+                    this.monthDay = this.monthDayCreate(lastYear + "/" + lastMonth + "/01");
+                },
+                backNowMonth: function () {
+                    this.titleMonth = this.timeToSort(new Date(), 'ym');
+                    this.monthDay = this.monthDayCreate(new Date());
+                },
+                dayMouseenter: function (event) {
+                    console.log(this.titleMonth + '/' + event.currentTarget.innerText)
+                },
+                dayMouseleave: function (event) {
+                    console.log('222')
+                },
+            },
+            template: "#custom-calendar"
+        })
+        let app1 = new Vue({ el: '#components-demo' })
+        debugger
+    </script>
+</body>
+
+</html>
